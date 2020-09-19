@@ -1,9 +1,3 @@
-// const vmicFileInput = document.getElementById("selectVMIC");
-
-// canvas vars
-var view = document.getElementById("view");
-var c = view.getContext("2d");
-
 // make canvas fill the window
 function canvasFill(canvas) {
 	canvas.height = window.innerHeight;
@@ -61,49 +55,3 @@ function requestImages(dir) {
 	req.send();
 	return imgArray;
 }
-
-
-// initial setup
-canvasFill(view);
-
-class ImageData {
-	constructor() {
-		// this.vmicFileInput = vmicFileInput;
-		this.file = 0;
-	}
-
-	loadVmic(file) {
-		if (checkVmic(getFileExtension(file.name))) {
-			this.file = file;
-		}
-	}
-	requestTiles(zoomLevel) {
-		var imgArray = requestImages("/VMICs/dzc_output_files/" + zoomLevel);
-		console.log(imgArray);
-	}
-}
-
-
-class SlideView {
-	constructor(canvas, imageData) {
-		this.canvas = canvas;
-		this.context = canvas.getContext("2d");
-		this.width = this.context.height;
-		this.height = this.context.width;
-		this.zoomLevel = 0;
-		this.cameraX = 0;
-		this.cameraY = 0;
-	}
-
-
-}
-
-slideImage = new ImageData();
-viewer = new SlideView(view, slideImage);
-
-slideImage.requestTiles(8);
-
-// vmicFileInput.addEventListener("change", function() {
-// 	const file = this.files[0];
-// 	slideImage.loadVmic(file);
-// }, false);
