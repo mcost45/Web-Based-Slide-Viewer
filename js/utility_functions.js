@@ -29,7 +29,7 @@ function getCoords(X_Y) {
 	return X_Y.split("_");
 }
 
-function requestImages(dir) {
+function requestImages(dir, callback, context) {
 	var imgArray = [];
 	var req = new XMLHttpRequest();
 	req.open("GET", dir, true);
@@ -41,17 +41,19 @@ function requestImages(dir) {
 				if (x.href.match(/\.(jpe?g)$/) ) { 
 					let fileName = removeFileExtension(getFileFromPath(x.href));
 					let coords = getCoords(fileName);
+					let img = new Image();
+					img.src = x.href
 					imgArray.push({
 						xCoord: coords[0],
 						yCoord: coords[1],
-						href: x.href
+						image: img
 					});
 				} 
 			};
+			callback(imgArray);
 		} else {
 			alert('Failed Request: ' + req.status);
 		}
 	}
 	req.send();
-	return imgArray;
 }
