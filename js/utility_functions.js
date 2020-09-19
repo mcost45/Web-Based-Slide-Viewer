@@ -37,20 +37,27 @@ function requestImages(dir, callback, context) {
 	req.onload = () => {
 		if (req.status === 200) {
 			var elements = req.response.getElementsByTagName("a");
+			var loaded = 0;
 			for (x of elements) {
-				if (x.href.match(/\.(jpe?g)$/) ) { 
+				// if (x.href.match(/\.(jpe?g)$/) ) { 
 					let fileName = removeFileExtension(getFileFromPath(x.href));
 					let coords = getCoords(fileName);
-					let img = new Image();
-					img.src = x.href
+					let img = document.createElement("img");
+					img.onload = function() {
+						loaded++;
+						if (loaded == elements.length) {
+							callback(imgArray);
+						}
+					}
+					img.src = x.href;
 					imgArray.push({
 						xCoord: coords[0],
 						yCoord: coords[1],
 						image: img
 					});
-				} 
+				// }
 			};
-			callback(imgArray);
+			// callback(imgArray);
 		} else {
 			alert('Failed Request: ' + req.status);
 		}

@@ -36,10 +36,20 @@ class SlideView {
 	}
 
 	receiveTiles(imgArray) {
-		console.log(imgArray);
-		// for 
-		c.drawImage(imgArray[0]["image"], 100, 100);
-		console.log(imgArray[0]["image"].);
+		console.log("received tiles");
+		var trackHeight = 0;
+		var trackWidth = 0;
+		console.log(imgArray[0]["image"].naturalWidth + " ee");
+		imgArray.forEach((tile, index) => {
+			let imageSrc = tile["image"];
+			if (index == 0) {
+				trackWidth = imageSrc.naturalWidth;
+				trackHeight = imageSrc.naturalHeight;
+			}
+			c.drawImage(imageSrc, trackWidth * tile["xCoord"], trackHeight * tile["yCoord"]);
+		});
+		// c.drawImage(imgArray[0]["image"], 100, 100);
+		// console.log(imgArray[0]["image"].);
 	}
 }
 
@@ -47,12 +57,15 @@ class SlideView {
 
 
 // initial setup
-canvasFill(view);
 
-slideImage = new ImageData();
-viewer = new SlideView(c, slideImage);
+window.addEventListener('load', function () {
+	canvasFill(view);
 
-slideImage.requestTiles(10, viewer.receiveTiles);
+	slideImage = new ImageData();
+	viewer = new SlideView(c, slideImage);
+
+	slideImage.requestTiles(10, viewer.receiveTiles);
+})
 
 // var back = slideImage.requestTiles(9);
 // console.log(back.length);
