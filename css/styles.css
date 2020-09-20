@@ -3,6 +3,7 @@ body {
 	font-family: 'Roboto', sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	background-color: black;
 }
 
 #view {
@@ -11,4 +12,14 @@ body {
 	top: 0;
 	left: 0;
 	z-index:-1;
+}
+
+.title {
+	margin: 5px 0 5px 3%;
+}
+
+.topBar {
+	background: white;
+	padding: 5px 0 5px 0;
+	border-bottom: 3px solid black;
 }

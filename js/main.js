@@ -1,8 +1,14 @@
+// set the lowest zoom resolution slider-viewer will go out too
 const minimumZoomLevel = 10;
+// threshold determines how much scrolling/scaling one one layer until canvas changes to next resolution
 const levelChangeThreshold = 0;
+// set the maximum resolution layer
 const maximumZoomLevel = 14;
+// sets default resolution zoom
 const defaultZoomLevel = 11;
-const scaleMultiplier = 0.15;
+// determines how much each mouse scroll scales the canvas - must be a fraction of 1 to avoid blurriness
+const scaleMultiplier = 1/5;
+// make each resolution layer use the files from the resolution 3 'layers' higher
 const upscale = 3;
 
 
@@ -84,6 +90,7 @@ class SlideView {
 		let lenb = self.drawQueue.length;
 		while (i < lenb) {
 			let tile = self.drawQueue[i];
+			// check if this tile is on the screen - if not ++i and skip loop;
 			self.context.drawImage(tile["imageSrc"], tile["xOff"] + self.xLeft, tile["yOff"] + self.yTop);
 			++i;
 		}
@@ -94,17 +101,18 @@ class SlideView {
 		// self.context.scale(roundDecimal(1 / self.scale, 1), roundDecimal(1 / self.scale));
 		self.absoluteScale = 1;
 		self.scale = 1;
+		console.log("scale is now 1.Going to folder: " + (self.zoomLevel + 3));
 		self.ImageData.requestTiles(self.upscale, self.zoomLevel, self.receiveTiles, self);
 		// self.context.scale(0.8, 0.8);	
 	}
 	increaseResolution(self) {
-		console.log("higher res");
+		// console.log("higher res");
 		self.zoomLevel++;
 		self.updateTiles(self);
 		self.trackCurrent = -self.levelChangeThreshold;
 	}
 	decreaseResolution(self) {
-		console.log("lower res");
+		// console.log("lower res");
 		self.zoomLevel--;
 		self.updateTiles(self);
 		self.trackCurrent = self.levelChangeThreshold;
@@ -140,6 +148,7 @@ class SlideView {
 				if (self.zoomLevel != self.minimumZoomLevel || (self.zoomLevel == self.minimumZoomLevel && self.trackCurrent < 0)) {
 					self.trackCurrent--;
 					self.scale = 1 - self.scaleMultiplier;
+					console.log("changed scale: " + self.scale);
 					self.absoluteScale -= self.scaleMultiplier;
 					self.xLeft += event.clientX  * 0.1;
 					self.yTop += event.clientY  * 0.1;
@@ -149,6 +158,7 @@ class SlideView {
 				if (self.zoomLevel != self.maximumZoomLevel || (self.zoomLevel == self.maximumZoomLevel && self.trackCurrent > 0)) {
 					self.trackCurrent++;
 					self.scale = 1 + self.scaleMultiplier;
+					console.log("changed scale: " + self.scale);
 					self.absoluteScale += self.scaleMultiplier;
 					self.xLeft -= event.clientX  * 0.1;
 					self.yTop -= event.clientY  * 0.1;
@@ -156,7 +166,7 @@ class SlideView {
 				}
 			}
 		}
-		console.log(self.trackCurrent);
+		// console.log(self.trackCurrent);
 	}
 }
 
@@ -164,6 +174,10 @@ class SlideView {
 window.onload = function(){
 	let view = document.getElementById("view");
 	let c = view.getContext("2d");
+	c.mozImageSmoothingEnabled = false;
+	c.webkitImageSmoothingEnabled = false;
+	c.msImageSmoothingEnabled = false;
+	c.imageSmoothingEnabled = false;
 
 	canvasFill(view);
 
