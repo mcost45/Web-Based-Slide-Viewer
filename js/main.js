@@ -91,7 +91,10 @@ class SlideView {
 		while (i < lenb) {
 			let tile = self.drawQueue[i];
 			// check if this tile is on the screen - if not ++i and skip loop;
-			self.context.drawImage(tile["imageSrc"], tile["xOff"] + self.xLeft, tile["yOff"] + self.yTop);
+			if (isOnScreen(tile["xOff"] + self.xLeft, tile["xOff"] + tile["imageSrc"].naturalWidth  + self.xLeft,
+				tile["yOff"] + self.yTop, tile["yOff"] + tile["imageSrc"].naturalHeight + self.yTop, 0, self.canvas.width, 0, self.canvas.height)) {
+				self.context.drawImage(tile["imageSrc"], tile["xOff"] + self.xLeft, tile["yOff"] + self.yTop);
+			}
 			++i;
 		}
 		self.context.restore();

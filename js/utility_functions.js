@@ -33,6 +33,11 @@ function roundDecimal(number) {
 	return Math.round(number * 10) / 10;
 }
 
+function isOnScreen(aXStart, aXEnd, aYStart, aYEnd,
+	bXStart, bXEnd, bYStart, bYEnd) {
+	return aXEnd >= bXStart && aXStart <= bXEnd && aYStart <= bYEnd && aYEnd >= bYStart;
+}
+
 function requestImages(dir, callback, self) {
 	let imgArray = [];
 	let req = new XMLHttpRequest();
