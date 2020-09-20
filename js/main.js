@@ -28,57 +28,90 @@ class SlideView {
 		self.mouseDown = false;
 		self.xLeft = 0;
 		self.yTop = 0;
-		self.widthVOriginal = 1.0;
-		self.heightVOriginal = 1.0;
-		self.widthV = self.widthVOriginal;
-		self.heightV = self.heightVOriginal;
+		self.widthV = 1;
+		self.heightV = 1;
 		self.lastX = 0;
 		self.lastY = 0;
+		self.scale = 1.0;
+        self.scaleMultiplier = 0.1;
+        self.absoluteScale = 1.0;
 	}
 
 	receiveTiles(self, imgArray) {
 		// console.log("received tiles");
 		let trackHeight = 0;
 		let trackWidth = 0;
-		imgArray.forEach((tile, index) => {
+		let i = 0;
+		let lena = imgArray.length;
+		while (i < lena) {
+			let tile = imgArray[i];
 			let imageSrc = tile["image"];
-			if (index == 0) {
+			if (i == 0) {
 				trackWidth = imageSrc.naturalWidth;
 				trackHeight = imageSrc.naturalHeight;
 			}
-			self.context.drawImage(imageSrc, trackWidth * tile["xCoord"], trackHeight * tile["yCoord"]);
-			console.log(self.drawQueue);
-		});
+			// self.context.drawImage(imageSrc, trackWidth * tile["xCoord"], trackHeight * tile["yCoord"]);
+			self.drawQueue.push({
+				imageSrc: imageSrc,
+				xOff: trackWidth * tile["xCoord"],
+				yOff: trackHeight * tile["yCoord"]
+			});
+			++i;
+		};
 	}
-	draw() {
+	draw(self) {
+		requestAnimationFrame( function() {
+			self.draw(self);
+		});
+		self.context.clearRect(0, 0, window.innerWidth * (5- self.absoluteScale), window.innerHeight * (5 - self.absoluteScale));
+		self.context.save();
 		let i = 0;
-		len = self.drawQueue;
-		while (i < len) {
-			console.log(self.drawQueue + "e");
+		let lenb = self.drawQueue.length;
+		while (i < lenb) {
+			let tile = self.drawQueue[i];
+			self.context.drawImage(tile["imageSrc"], tile["xOff"] + self.xLeft, tile["yOff"] + self.yTop);
 			++i;
 		}
+		self.context.restore();
 	}
-	onMouseDown() {
+	onMouseDown(self, event) {
 		self.mouseDown = true;
+		self.lastX = event.clientX;
+		self.lastY = event.clientY;
 	}
-	onMouseUp() {
+	onMouseUp(self) {
 		self.mouseDown = false;
 	}
 	onMouseMove(self, event) {
-		let x = event.clientX - this.offsetLeft - this.clientLeft + this.scrollLeft;
-		let y = event.clientY - this.offsetTop - this.clientTop + this.scrollTop;
-		let dx = 0;
-		let dy = 0;
-		if (self.mousedown) {
-			dx = (x - self.lastX) / self.canvas.width * self.widthV;
-			dy = (y - self.lastY) / self.canvas.height * self.heightV;
+		if (self.mouseDown == true) {
+			let x = event.clientX;
+			let y = event.clientY;
+			let dx = (x - self.lastX) / (self.widthV);
+			let dy = (y - self.lastY) / (self.heightV);
+			self.xLeft -= dx;
+			self.yTop -= dy;
+			self.lastX = x;
+			self.lastY = y;
 		}
-		self.xLeft -= dx;
-		self.yTop -= dy;
-		self.draw();
 	}
-	onMouseWheel() {
-		// 
+	onMouseWheel(self, event) {
+		if ((event.wheelDelta < 0 || event.detail > 0)) {
+			if (self.absoluteScale >= 1 + self.scaleMultiplier) {
+				self.scale = 1 - self.scaleMultiplier;
+				self.absoluteScale -= self.scaleMultiplier;
+				self.xLeft += event.clientX  * 0.1;
+				self.yTop += event.clientY  * 0.1;
+				self.context.scale(self.scale, self.scale);
+			} else {
+				self.scale = 1;
+			}
+		} else {
+			self.scale = 1 + self.scaleMultiplier;
+			self.absoluteScale += self.scaleMultiplier;
+			self.xLeft -= event.clientX  * 0.1;
+			self.yTop -= event.clientY  * 0.1;
+			self.context.scale(self.scale, self.scale);
+		}
 	}
 }
 
@@ -110,13 +143,31 @@ window.onload = function(){
 
 	slideImage.requestTiles(9, viewer.receiveTiles, viewer);
 
-	view.addEventListener("mousedown", viewer.onMouseDown, false);
-	view.addEventListener("mouseup", viewer.onMouseUp, false);
-	view.addEventListener("mousemove", function(){
-    	viewer.onMouseMove(viewer, event);
+	view.addEventListener("mousedown", function(){
+		viewer.onMouseDown(viewer, event);
 	}, false);
-	view.addEventListener("mousewheel", viewer.onMouseWheel, false);
-	view.addEventListener("DOMMouseScroll", viewer.onMouseWheel, false);
+	view.addEventListener("mouseup", function(){
+		viewer.onMouseUp(viewer);
+	}, false);
+
+	view.addEventListener("mousemove", function(){
+		viewer.onMouseMove(viewer, event);
+	}, false);
+
+	view.addEventListener("mousewheel", function(){
+		viewer.onMouseWheel(viewer, event);
+	}, false);
+	view.addEventListener("DOMMouseScroll", function(){
+		viewer.onMouseWheel(viewer, event);
+	}, false);
+
+	window.addEventListener('resize', function(event){
+  		canvasFill(viewer);
+	});
+
+	requestAnimationFrame(function() {
+		viewer.draw(viewer);
+	});
 }
 
 // let back = slideImage.requestTiles(9);

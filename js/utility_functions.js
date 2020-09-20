@@ -39,8 +39,8 @@ function requestImages(dir, callback, self) {
 			let elements = req.response.getElementsByTagName("a");
 			let loaded = 0;
 			let i = 0;
-			let len = elements.length;
-			while (i < len) {
+			let lenc = elements.length;
+			while (i < lenc) {
 					x = elements[i];
 				// if (x.href.match(/\.(jpe?g)$/) ) { 
 					let fileName = removeFileExtension(getFileFromPath(x.href));
