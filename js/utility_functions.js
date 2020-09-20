@@ -29,6 +29,10 @@ function getCoords(X_Y) {
 	return X_Y.split("_");
 }
 
+function roundDecimal(number) {
+	return Math.round(number * 10) / 10;
+}
+
 function requestImages(dir, callback, self) {
 	let imgArray = [];
 	let req = new XMLHttpRequest();
