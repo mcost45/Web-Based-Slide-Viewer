@@ -29,16 +29,19 @@ function getCoords(X_Y) {
 	return X_Y.split("_");
 }
 
-function requestImages(dir, callback, context) {
-	var imgArray = [];
-	var req = new XMLHttpRequest();
+function requestImages(dir, callback, self) {
+	let imgArray = [];
+	let req = new XMLHttpRequest();
 	req.open("GET", dir, true);
 	req.responseType = 'document';
 	req.onload = () => {
 		if (req.status === 200) {
-			var elements = req.response.getElementsByTagName("a");
-			var loaded = 0;
-			for (x of elements) {
+			let elements = req.response.getElementsByTagName("a");
+			let loaded = 0;
+			let i = 0;
+			let len = elements.length;
+			while (i < len) {
+					x = elements[i];
 				// if (x.href.match(/\.(jpe?g)$/) ) { 
 					let fileName = removeFileExtension(getFileFromPath(x.href));
 					let coords = getCoords(fileName);
@@ -46,7 +49,7 @@ function requestImages(dir, callback, context) {
 					img.onload = function() {
 						loaded++;
 						if (loaded == elements.length) {
-							callback(imgArray);
+								callback(self, imgArray);
 						}
 					}
 					img.src = x.href;
@@ -56,7 +59,9 @@ function requestImages(dir, callback, context) {
 						image: img
 					});
 				// }
+				++i;
 			};
+			// loop finished, do something now until the onload function fulfills
 			// callback(imgArray);
 		} else {
 			alert('Failed Request: ' + req.status);
