@@ -54,6 +54,10 @@ function updateScale(self, transformedPointer) {
 	self.scaleCanvas(self, RELATIVE_SCALE_FACTOR * self.scale, transformedPointer);
 }
 
+function updateFilters(view, contrastSlider, brightnessSlider, saturationSlider) {
+	view.style.webkitFilter = "contrast(" + contrastSlider.value / 255 + ") brightness(" + brightnessSlider.value / 255 + ") saturate(" + saturationSlider.value / 255 + ")";
+}
+
 function requestImage(dir, callback, self) {
 	let req = new XMLHttpRequest();
 	req.open("GET", dir, true);

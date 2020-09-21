@@ -16,7 +16,14 @@
 		<h1 class="title">JS Web-Based Slide Viewer</h1>
 		<h2 class="subtitle">By Matthew Costello</h2>
 	</div>
-	<!-- <input id="selectVMIC" type="file"> -->
+	<div id ="toolBar" class="boxShadow">
+		<h2 class="filterName">Brightness:</h2>
+		<input type="range" min="50" max="450" value="255" class="slider" id="brightnessSlider">
+		<h2 class="filterName">Contrast:</h2>
+		<input type="range" min="50" max="450" value="255" class="slider" id="contrastSlider">
+		<h2 class="filterName">Saturation:</h2>
+		<input type="range" min="50" max="450" value="255" class="slider" id="saturationSlider">
+	</div>
 	<canvas id="navigator" class="boxShadow"></canvas>
 	<canvas id="view"></canvas>
 	<script src="js/main.js"></script>

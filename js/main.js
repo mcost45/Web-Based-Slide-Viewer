@@ -41,20 +41,41 @@ class ImageData {
 }
 
 
-class Navigator {
+class NavigatorView {
 	constructor(canvas, context, viewer) {
 		let self = this;
 		self.canvas = canvas;
 		self.context = context;
 		self.viewer = viewer;
 		self.background = 0;
+		self.ratioW = 0;
+		self.ratioH = 0;
+		self.navPointX = 0;
+		self.navPointY = 0;
+		self.navPointWidth = 0;
+		self.navPointHeight = 0;
 	}
 
 	draw(self) {
 		requestAnimationFrame( function() {
 			self.draw(self);
 		});
+		// console.log(self.ratioW);
+		self.context.clearRect(0, 0, self.canvas.width, self.canvas.height);
 		self.context.drawImage(self.background, 0, 0);
+
+		self.ratioW = 8 * self.canvas.width / self.viewer.widthV;
+		self.ratioH = 8 * self.canvas.height / self.viewer.heightV;
+		self.navPointX = -self.ratioW * self.viewer.xLeft;
+		self.navPointY = -self.ratioH * self.viewer.yTop;
+		self.navPointWidth = self.ratioW * self.viewer.canvas.width;
+		self.navPointHeight = self.ratioH * self.viewer.canvas.height;
+
+		// console.log(self.viewer.widthV);
+		self.context.beginPath();
+		self.context.rect(self.navPointX + 10, self.navPointY + 10, self.navPointWidth, self.navPointHeight);
+		self.context.fillStyle = "rgba(0, 0, 0, 0.4)";;
+		self.context.fill();
 	}
 	setupCanvas(self) {
 		self.canvas.height = (self.background.height - 20) / 2;
@@ -64,7 +85,6 @@ class Navigator {
 		requestImage(THUMBNAIL_PATH, resultFunction, self);
 	}
 	receiveThumbnail(self, image) {
-		console.log(image);
 		self.background = image;
 		self.setupCanvas(self);
 		self.context.scale(0.5, 0.5);
@@ -146,7 +166,7 @@ class SlideView {
 			let tileXEnd = tile["xOff"] + tile["imageSrc"].naturalWidth  + self.xLeft;
 			let tileYEnd = tile["yOff"] + tile["imageSrc"].naturalHeight + self.yTop;
 			if (isOnScreen(tileXStart, tileXEnd, tileYStart, tileYEnd, 0, window.innerWidth, 0, window.innerHeight)) {
-				self.context.drawImage(tile["imageSrc"], tile["xOff"] + self.xLeft, tile["yOff"] + self.yTop);
+				self.context.drawImage(tile["imageSrc"], Math.floor(tile["xOff"] + self.xLeft), Math.floor(tile["yOff"] + self.yTop));
 			}
 			++i;
 		}
@@ -238,8 +258,8 @@ window.onload = function(){
 	let view = document.getElementById("view");
 	let navigatorView = document.getElementById("navigator");
 
-	let c = view.getContext("2d");
-	let nc = navigatorView.getContext("2d");
+	let c = view.getContext("2d", {alpha: false});
+	let nc = navigatorView.getContext("2d", {alpha: false});
 
 	c.mozImageSmoothingEnabled = false;
 	c.webkitImageSmoothingEnabled = false;
@@ -252,7 +272,7 @@ window.onload = function(){
 
 	viewer = new SlideView(view, c, slideImage);
 
-	nav = new Navigator(navigatorView, nc, viewer);
+	nav = new NavigatorView(navigatorView, nc, viewer);
 
 	slideImage.requestTiles(DEFAULT_ZOOM_LEVEL - UPSCALE, viewer.receiveTiles, viewer);
 	nav.requestThumbnail(nav.receiveThumbnail, nav);
@@ -274,6 +294,20 @@ window.onload = function(){
 	}, false);
 	view.addEventListener("DOMMouseScroll", function(){
 		viewer.onMouseWheel(viewer, event);
+	}, false);
+
+	let brightnessSlider = document.getElementById("brightnessSlider")
+	let contrastSlider = document.getElementById("contrastSlider")
+	let saturationSlider = document.getElementById("saturationSlider")
+
+	brightnessSlider.addEventListener("input", function(){
+		updateFilters(view, contrastSlider, brightnessSlider, saturationSlider);
+	}, false);
+	contrastSlider.addEventListener("input", function(){
+		updateFilters(view, contrastSlider, brightnessSlider, saturationSlider);
+	}, false);
+	saturationSlider.addEventListener("input", function(){
+		updateFilters(view, contrastSlider, brightnessSlider, saturationSlider);
 	}, false);
 
 	window.addEventListener('resize', function(event){
