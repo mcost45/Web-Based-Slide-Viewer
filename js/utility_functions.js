@@ -38,11 +38,21 @@ function isOnScreen(aXStart, aXEnd, aYStart, aYEnd,
 	return aXEnd >= bXStart && aXStart <= bXEnd && aYStart <= bYEnd && aYEnd >= bYStart;
 }
 
+function getTransformedPoint(x, y, context) {
+	let inverse = context.getTransform().invertSelf();
+	let transX = inverse.a * x + inverse.c * y + inverse.e;
+	let transY = inverse.b * x + inverse.d * y + inverse.f;
+	return { x: transX, y: transY };
+}
+
 function requestImages(dir, callback, self) {
 	let imgArray = [];
 	let req = new XMLHttpRequest();
 	req.open("GET", dir, true);
 	req.responseType = 'document';
+	req.onerror = function () {
+		alert("XMLHttpRequest Error: The local webserver must be running for the browser to request files.");
+	}
 	req.onload = () => {
 		if (req.status === 200) {
 			let elements = req.response.getElementsByTagName("a");
@@ -73,7 +83,7 @@ function requestImages(dir, callback, self) {
 			// loop finished, do something now until the onload function fulfills
 			// callback(imgArray);
 		} else {
-			alert('Failed Request: ' + req.status);
+			alert("Failed Request: " + req.status);
 		}
 	}
 	req.send();

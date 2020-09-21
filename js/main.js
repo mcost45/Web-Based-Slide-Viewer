@@ -1,15 +1,18 @@
-// set the lowest zoom resolution slider-viewer will go out too
-const minimumZoomLevel = 10;
-// threshold determines how much scrolling/scaling one one layer until canvas changes to next resolution
-const levelChangeThreshold = 0;
-// set the maximum resolution layer
-const maximumZoomLevel = 14;
-// sets default resolution zoom
-const defaultZoomLevel = 11;
-// determines how much each mouse scroll scales the canvas - must be a fraction of 1 to avoid blurriness
-const scaleMultiplier = 1/5;
 // make each resolution layer use the files from the resolution 3 'layers' higher
-const upscale = 3;
+const UPSCALE = 3;
+// set the lowest zoom resolution slider-viewer will go out too
+const MINIMUMZOOMLEVEL = 10 - UPSCALE;
+// threshold determines how much scrolling/scaling one one layer until canvas changes to next resolution
+const LEVELCHANGETHRESHOLD = 1;
+// set the maximum resolution layer
+const MAXIMUMZOOMLEVEL = 14 - UPSCALE;
+// sets default resolution zoom
+const DEFAULTZOOMLEVEL = 11;
+// determines how much each mouse scroll scales the canvas - must be a fraction of 1 to avoid blurriness
+const SCALEMULTIPLIER = 1/4;
+const MINZOOMED = 0.5;
+const MAXZOOMED = MINZOOMED + SCALEMULTIPLIER;
+const ZOOMEDEPSI = 0.05;
 
 
 class ImageData {
@@ -25,16 +28,14 @@ class ImageData {
 			self.file = file;
 		}
 	}
-	requestTiles(upscale, zoomLevel, resultFunction, self) {
-		console.log("/VMICs/dzc_output_files/" + (zoomLevel + upscale));
-		let imgArray = requestImages("/VMICs/dzc_output_files/" + (zoomLevel + upscale), resultFunction, self);
+	requestTiles(zoomLevel, resultFunction, self) {
+		let imgArray = requestImages("/VMICs/dzc_output_files/" + (zoomLevel + UPSCALE), resultFunction, self);
 		self.imgArray = imgArray;
 	}
 }
 
-
 class SlideView {
-	constructor(canvas, context, ImageData, minimumZoomLevel, maximumZoomLevel, levelChangeThreshold, defaultZoomLevel, scaleMultiplier, upscale) {
+	constructor(canvas, context, ImageData) {
 		let self = this;
 		self.canvas = canvas;
 		self.context = context;
@@ -47,19 +48,12 @@ class SlideView {
 		self.heightV = 1;
 		self.lastX = 0;
 		self.lastY = 0;
-		self.scale = 1.0;
-        self.scaleMultiplier = scaleMultiplier;
-        self.absoluteScale = 1.0;
-        self.trackCurrent = 0;
-        self.zoomLevel = defaultZoomLevel - upscale;
-        self.minimumZoomLevel = minimumZoomLevel - upscale;
-        self.maximumZoomLevel = maximumZoomLevel - upscale;
-        self.levelChangeThreshold = levelChangeThreshold;
-        self.upscale = upscale;
+		self.scale = 0.5;
+		self.absoluteScale = 1.0;
+		self.zoomLevel = DEFAULTZOOMLEVEL - UPSCALE;
 	}
 
 	receiveTiles(self, imgArray) {
-		// console.log("received tiles");
 		let trackHeight = 0;
 		let trackWidth = 0;
 		let i = 0;
@@ -71,7 +65,6 @@ class SlideView {
 				trackWidth = imageSrc.naturalWidth;
 				trackHeight = imageSrc.naturalHeight;
 			}
-			// self.context.drawImage(imageSrc, trackWidth * tile["xCoord"], trackHeight * tile["yCoord"]);
 			self.drawQueue.push({
 				imageSrc: imageSrc,
 				xOff: trackWidth * tile["xCoord"],
@@ -84,41 +77,47 @@ class SlideView {
 		requestAnimationFrame( function() {
 			self.draw(self);
 		});
-		self.context.clearRect(0, 0, window.innerWidth * (5- self.absoluteScale), window.innerHeight * (5 - self.absoluteScale));
 		self.context.save();
+		self.context.clearRect(0, 0, window.innerWidth * (5- self.absoluteScale), window.innerHeight * (5 - self.absoluteScale));
+		self.context.restore();
 		let i = 0;
 		let lenb = self.drawQueue.length;
 		while (i < lenb) {
 			let tile = self.drawQueue[i];
-			// check if this tile is on the screen - if not ++i and skip loop;
-			if (isOnScreen(tile["xOff"] + self.xLeft, tile["xOff"] + tile["imageSrc"].naturalWidth  + self.xLeft,
-				tile["yOff"] + self.yTop, tile["yOff"] + tile["imageSrc"].naturalHeight + self.yTop, 0, self.canvas.width, 0, self.canvas.height)) {
+			let tileXStart = tile["xOff"] + self.xLeft;
+			let tileYStart = tile["yOff"] + self.yTop;
+			let tileXEnd = tile["xOff"] + tile["imageSrc"].naturalWidth  + self.xLeft;
+			let tileYEnd = tile["yOff"] + tile["imageSrc"].naturalHeight + self.yTop;
+			if (isOnScreen(tileXStart, tileXEnd, tileYStart, tileYEnd, 0, window.innerWidth, 0, window.innerHeight)) {
 				self.context.drawImage(tile["imageSrc"], tile["xOff"] + self.xLeft, tile["yOff"] + self.yTop);
 			}
 			++i;
 		}
-		self.context.restore();
 	}
-	updateTiles(self) {
+	scaleCanvas(self, scale, mouseX, mouseY) {
+		let transformedPointer = getTransformedPoint(mouseX, mouseY, self.context);
+		self.context.translate(transformedPointer.x, transformedPointer.y);
+		self.context.scale(scale, scale);
+		self.context.translate(-transformedPointer.x, -transformedPointer.y);
+	}
+	updateTiles(self, mouseX, mouseY) {
 		self.drawQueue.length = 0;
-		// self.context.scale(roundDecimal(1 / self.scale, 1), roundDecimal(1 / self.scale));
-		self.absoluteScale = 1;
-		self.scale = 1;
-		console.log("scale is now 1.Going to folder: " + (self.zoomLevel + 3));
-		self.ImageData.requestTiles(self.upscale, self.zoomLevel, self.receiveTiles, self);
-		// self.context.scale(0.8, 0.8);	
+		self.absoluteScale = 0.75;
+		self.ImageData.requestTiles(self.zoomLevel, self.receiveTiles, self);
 	}
-	increaseResolution(self) {
-		// console.log("higher res");
+	increaseResolution(self, mouseX, mouseY) {
+		let transformedPointer = getTransformedPoint(mouseX, mouseY, self.context);
 		self.zoomLevel++;
-		self.updateTiles(self);
-		self.trackCurrent = -self.levelChangeThreshold;
+		self.xLeft -= (transformedPointer.x * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE;
+		self.yTop -= (transformedPointer.y * (self.zoomLevel -  UPSCALE - 1 * UPSCALE)) / UPSCALE;
+		self.updateTiles(self, mouseX, mouseY);
 	}
-	decreaseResolution(self) {
-		// console.log("lower res");
+	decreaseResolution(self, mouseX, mouseY) {
+		let transformedPointer = getTransformedPoint(mouseX, mouseY, self.context);
 		self.zoomLevel--;
-		self.updateTiles(self);
-		self.trackCurrent = self.levelChangeThreshold;
+		self.xLeft += ((transformedPointer.x  * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE) * (1 / MAXZOOMED);
+		self.yTop += ((transformedPointer.y  * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE) * (1 / MAXZOOMED);
+		self.updateTiles(self, mouseX, mouseY);
 	}
 	onMouseDown(self, event) {
 		self.mouseDown = true;
@@ -134,42 +133,39 @@ class SlideView {
 			let y = event.clientY;
 			let dx = (x - self.lastX) / (self.widthV);
 			let dy = (y - self.lastY) / (self.heightV);
-			self.xLeft -= dx;
-			self.yTop -= dy;
+			self.xLeft += dx;
+			self.yTop += dy;
 			self.lastX = x;
 			self.lastY = y;
 		}
 	}
 	onMouseWheel(self, event) {
-		if (self.trackCurrent > self.levelChangeThreshold && self.zoomLevel < self.maximumZoomLevel) {
-			self.increaseResolution(self);
-		} else if (self.trackCurrent < -self.levelChangeThreshold && self.zoomLevel > self.minimumZoomLevel) {
-			self.decreaseResolution(self);
+		if ((event.wheelDelta < 0 || event.detail > 0)) {
+			// roll out
+			if (self.scale - SCALEMULTIPLIER < MINZOOMED - ZOOMEDEPSI && self.zoomLevel > MINIMUMZOOMLEVEL) {
+				canvasFill(self.context.canvas);
+				self.decreaseResolution(self, event.clientX, event.clientY);
+				self.scale = MAXZOOMED;
+				self.scaleCanvas(self, 2 * self.scale, event.clientX, event.clientY);
+			} else if (self.zoomLevel != MINIMUMZOOMLEVEL || (self.zoomLevel == MINIMUMZOOMLEVEL && self.scale > MINZOOMED)) {
+				self.scale -= SCALEMULTIPLIER;
+				self.absoluteScale -= SCALEMULTIPLIER;
+				canvasFill(self.context.canvas);
+				self.scaleCanvas(self, 2 * self.scale, event.clientX, event.clientY);
+			}
 		} else {
-			// console.log("made it");
-			if ((event.wheelDelta < 0 || event.detail > 0)) {
-				if (self.zoomLevel != self.minimumZoomLevel || (self.zoomLevel == self.minimumZoomLevel && self.trackCurrent < 0)) {
-					self.trackCurrent--;
-					self.scale = 1 - self.scaleMultiplier;
-					console.log("changed scale: " + self.scale);
-					self.absoluteScale -= self.scaleMultiplier;
-					self.xLeft += event.clientX  * 0.1;
-					self.yTop += event.clientY  * 0.1;
-					self.context.scale(roundDecimal(self.scale), roundDecimal(self.scale));
-				}
-			} else {
-				if (self.zoomLevel != self.maximumZoomLevel || (self.zoomLevel == self.maximumZoomLevel && self.trackCurrent > 0)) {
-					self.trackCurrent++;
-					self.scale = 1 + self.scaleMultiplier;
-					console.log("changed scale: " + self.scale);
-					self.absoluteScale += self.scaleMultiplier;
-					self.xLeft -= event.clientX  * 0.1;
-					self.yTop -= event.clientY  * 0.1;
-					self.context.scale(roundDecimal(self.scale), roundDecimal(self.scale));
-				}
+			// roll in
+			if (self.scale + SCALEMULTIPLIER > MAXZOOMED + ZOOMEDEPSI && self.zoomLevel < MAXIMUMZOOMLEVEL) {
+				canvasFill(self.context.canvas);
+				self.increaseResolution(self, event.clientX, event.clientY);
+				self.scale = MINZOOMED;
+			} else if (self.zoomLevel != MAXIMUMZOOMLEVEL || (self.zoomLevel == MAXIMUMZOOMLEVEL && self.scale < MAXZOOMED)) {
+				self.scale += SCALEMULTIPLIER;
+				self.absoluteScale += self.SCALEMULTIPLIER;
+				canvasFill(self.context.canvas);
+				self.scaleCanvas(self, 2 * self.scale, event.clientX, event.clientY);
 			}
 		}
-		// console.log(self.trackCurrent);
 	}
 }
 
@@ -185,9 +181,10 @@ window.onload = function(){
 	canvasFill(view);
 
 	slideImage = new ImageData();
-	viewer = new SlideView(view, c, slideImage, minimumZoomLevel, maximumZoomLevel, levelChangeThreshold, defaultZoomLevel, scaleMultiplier, upscale);
 
-	slideImage.requestTiles(upscale, defaultZoomLevel - upscale, viewer.receiveTiles, viewer);
+	viewer = new SlideView(view, c, slideImage);
+
+	slideImage.requestTiles(DEFAULTZOOMLEVEL - UPSCALE, viewer.receiveTiles, viewer);
 
 	view.addEventListener("mousedown", function(){
 		viewer.onMouseDown(viewer, event);
@@ -210,7 +207,7 @@ window.onload = function(){
 	}, false);
 
 	window.addEventListener('resize', function(event){
-  		canvasFill(viewer);
+		canvasFill(viewer);
 	});
 
 	requestAnimationFrame(function() {

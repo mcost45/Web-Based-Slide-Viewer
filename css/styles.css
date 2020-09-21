@@ -15,11 +15,18 @@ body {
 }
 
 .title {
-	margin: 5px 0 5px 3%;
+	display: inline;
+	margin: 0px 10px 0px 3%;
+	font-size: 20px;
+}
+
+.subtitle {
+	display: inline;
+	font-size: 12px;
 }
 
 .topBar {
 	background: white;
-	padding: 5px 0 5px 0;
-	border-bottom: 3px solid black;
+	padding: 10px 0 10px 0;
+	box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
