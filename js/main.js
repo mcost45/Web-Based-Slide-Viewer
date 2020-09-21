@@ -1,18 +1,24 @@
 // make each resolution layer use the files from the resolution 3 'layers' higher
 const UPSCALE = 3;
 // set the lowest zoom resolution slider-viewer will go out too
-const MINIMUMZOOMLEVEL = 10 - UPSCALE;
+const MINIMUM_ZOOM_LEVEL = 10 - UPSCALE;
 // threshold determines how much scrolling/scaling one one layer until canvas changes to next resolution
-const LEVELCHANGETHRESHOLD = 1;
+const LEVEL_CHANGE_THRESHOLD = 1;
 // set the maximum resolution layer
-const MAXIMUMZOOMLEVEL = 14 - UPSCALE;
+const MAXIMUM_ZOOM_LEVEL = 14 - UPSCALE;
 // sets default resolution zoom
-const DEFAULTZOOMLEVEL = 11;
+const DEFAULT_ZOOM_LEVEL = 11;
 // determines how much each mouse scroll scales the canvas - must be a fraction of 1 to avoid blurriness
-const SCALEMULTIPLIER = 1/4;
-const MINZOOMED = 0.5;
-const MAXZOOMED = MINZOOMED + SCALEMULTIPLIER;
-const ZOOMEDEPSI = 0.05;
+const SCALE_MULTIPLIER = 1/4;
+const MIN_ZOOMED = 0.5;
+const MAX_ZOOMED = MIN_ZOOMED + SCALE_MULTIPLIER;
+const ZOOMED_EPSI = 0.05;
+const RELATIVE_SCALE_FACTOR = 2;
+const LOADING_BLUR = 10;
+const FRICTION = 1.1;
+const DZC_OUTPUT_PATH = "/VMICs/dzc_output_files/";
+const THUMBNAIL_PATH = "/VMICs/dzc_output_files/9/";
+
 
 
 class ImageData {
@@ -29,10 +35,43 @@ class ImageData {
 		}
 	}
 	requestTiles(zoomLevel, resultFunction, self) {
-		let imgArray = requestImages("/VMICs/dzc_output_files/" + (zoomLevel + UPSCALE), resultFunction, self);
+		let imgArray = requestImages(DZC_OUTPUT_PATH + (zoomLevel + UPSCALE), resultFunction, self);
 		self.imgArray = imgArray;
 	}
 }
+
+
+class Navigator {
+	constructor(canvas, context, viewer) {
+		let self = this;
+		self.canvas = canvas;
+		self.context = context;
+		self.viewer = viewer;
+		self.background = 0;
+	}
+
+	draw(self) {
+		requestAnimationFrame( function() {
+			self.draw(self);
+		});
+		self.context.drawImage(self.background, 0, 0);
+	}
+	setupCanvas(self) {
+		self.canvas.height = (self.background.height - 20) / 2;
+		self.canvas.width = (self.background.width - 20) / 2;
+	}
+	requestThumbnail(resultFunction, self) {
+		requestImage(THUMBNAIL_PATH, resultFunction, self);
+	}
+	receiveThumbnail(self, image) {
+		console.log(image);
+		self.background = image;
+		self.setupCanvas(self);
+		self.context.scale(0.5, 0.5);
+		self.draw(self);
+	}
+}
+
 
 class SlideView {
 	constructor(canvas, context, ImageData) {
@@ -42,6 +81,7 @@ class SlideView {
 		self.ImageData = ImageData;
 		self.drawQueue = [];
 		self.mouseDown = false;
+		self.canScroll = true;
 		self.xLeft = 0;
 		self.yTop = 0;
 		self.widthV = 1;
@@ -50,17 +90,23 @@ class SlideView {
 		self.lastY = 0;
 		self.scale = 0.5;
 		self.absoluteScale = 1.0;
-		self.zoomLevel = DEFAULTZOOMLEVEL - UPSCALE;
+		self.xVelocity = 0;
+		self.yVelocity = 0;
+		self.zoomLevel = DEFAULT_ZOOM_LEVEL - UPSCALE;
 	}
 
 	receiveTiles(self, imgArray) {
 		let trackHeight = 0;
 		let trackWidth = 0;
+		let totalHeight = 0;
+		let totalWidth = 0;
 		let i = 0;
 		let lena = imgArray.length;
 		while (i < lena) {
 			let tile = imgArray[i];
 			let imageSrc = tile["image"];
+			totalWidth += imageSrc.naturalWidth;
+			totalHeight += imageSrc.naturalHeight;
 			if (i == 0) {
 				trackWidth = imageSrc.naturalWidth;
 				trackHeight = imageSrc.naturalHeight;
@@ -72,13 +118,24 @@ class SlideView {
 			});
 			++i;
 		};
+		// self.context.filter = "blur(0px)";
+		self.canScroll = true;
+		self.widthV = totalWidth;
+		self.heightV = totalHeight;
+		// console.log(totalWidth, totalHeight);
 	}
 	draw(self) {
 		requestAnimationFrame( function() {
 			self.draw(self);
 		});
 		self.context.save();
-		self.context.clearRect(0, 0, window.innerWidth * (5- self.absoluteScale), window.innerHeight * (5 - self.absoluteScale));
+		if (!self.mousedown) {
+			self.yVelocity /= FRICTION;
+			self.xVelocity /= FRICTION;
+			self.xLeft += self.xVelocity;
+			self.yTop += self.yVelocity;
+		}
+		self.context.clearRect(0, 0, window.innerWidth * 10, window.innerHeight * 10);
 		self.context.restore();
 		let i = 0;
 		let lenb = self.drawQueue.length;
@@ -93,31 +150,32 @@ class SlideView {
 			}
 			++i;
 		}
+		// console.log(self.widthV);
 	}
-	scaleCanvas(self, scale, mouseX, mouseY) {
-		let transformedPointer = getTransformedPoint(mouseX, mouseY, self.context);
+	scaleCanvas(self, scale, transformedPointer) {
 		self.context.translate(transformedPointer.x, transformedPointer.y);
+		self.absoluteScale *= scale;
 		self.context.scale(scale, scale);
 		self.context.translate(-transformedPointer.x, -transformedPointer.y);
+		self.widthV *= self.absoluteScale;
+		self.heightV *= self.absoluteScale;
 	}
-	updateTiles(self, mouseX, mouseY) {
+	updateTiles(self) {
 		self.drawQueue.length = 0;
-		self.absoluteScale = 0.75;
+		self.absoluteScale = 1.0;
 		self.ImageData.requestTiles(self.zoomLevel, self.receiveTiles, self);
 	}
-	increaseResolution(self, mouseX, mouseY) {
-		let transformedPointer = getTransformedPoint(mouseX, mouseY, self.context);
+	increaseResolution(self, transformedPointer) {
 		self.zoomLevel++;
 		self.xLeft -= (transformedPointer.x * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE;
 		self.yTop -= (transformedPointer.y * (self.zoomLevel -  UPSCALE - 1 * UPSCALE)) / UPSCALE;
-		self.updateTiles(self, mouseX, mouseY);
+		self.updateTiles(self);
 	}
-	decreaseResolution(self, mouseX, mouseY) {
-		let transformedPointer = getTransformedPoint(mouseX, mouseY, self.context);
+	decreaseResolution(self, transformedPointer) {
 		self.zoomLevel--;
-		self.xLeft += ((transformedPointer.x  * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE) * (1 / MAXZOOMED);
-		self.yTop += ((transformedPointer.y  * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE) * (1 / MAXZOOMED);
-		self.updateTiles(self, mouseX, mouseY);
+		self.xLeft += ((transformedPointer.x  * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE) * (1 / MAX_ZOOMED);
+		self.yTop += ((transformedPointer.y  * (self.zoomLevel - UPSCALE - 1 * UPSCALE)) / UPSCALE) * (1 / MAX_ZOOMED);
+		self.updateTiles(self);
 	}
 	onMouseDown(self, event) {
 		self.mouseDown = true;
@@ -131,39 +189,45 @@ class SlideView {
 		if (self.mouseDown == true) {
 			let x = event.clientX;
 			let y = event.clientY;
-			let dx = (x - self.lastX) / (self.widthV);
-			let dy = (y - self.lastY) / (self.heightV);
-			self.xLeft += dx;
-			self.yTop += dy;
+			self.xVelocity = (x - self.lastX) / 1;
+			self.yVelocity = (y - self.lastY) / 1;
+			self.xLeft += self.xVelocity;
+			self.yTop += self.yVelocity;
 			self.lastX = x;
 			self.lastY = y;
+			// canvasFill(self.context.canvas);
 		}
 	}
 	onMouseWheel(self, event) {
-		if ((event.wheelDelta < 0 || event.detail > 0)) {
-			// roll out
-			if (self.scale - SCALEMULTIPLIER < MINZOOMED - ZOOMEDEPSI && self.zoomLevel > MINIMUMZOOMLEVEL) {
-				canvasFill(self.context.canvas);
-				self.decreaseResolution(self, event.clientX, event.clientY);
-				self.scale = MAXZOOMED;
-				self.scaleCanvas(self, 2 * self.scale, event.clientX, event.clientY);
-			} else if (self.zoomLevel != MINIMUMZOOMLEVEL || (self.zoomLevel == MINIMUMZOOMLEVEL && self.scale > MINZOOMED)) {
-				self.scale -= SCALEMULTIPLIER;
-				self.absoluteScale -= SCALEMULTIPLIER;
-				canvasFill(self.context.canvas);
-				self.scaleCanvas(self, 2 * self.scale, event.clientX, event.clientY);
-			}
-		} else {
-			// roll in
-			if (self.scale + SCALEMULTIPLIER > MAXZOOMED + ZOOMEDEPSI && self.zoomLevel < MAXIMUMZOOMLEVEL) {
-				canvasFill(self.context.canvas);
-				self.increaseResolution(self, event.clientX, event.clientY);
-				self.scale = MINZOOMED;
-			} else if (self.zoomLevel != MAXIMUMZOOMLEVEL || (self.zoomLevel == MAXIMUMZOOMLEVEL && self.scale < MAXZOOMED)) {
-				self.scale += SCALEMULTIPLIER;
-				self.absoluteScale += self.SCALEMULTIPLIER;
-				canvasFill(self.context.canvas);
-				self.scaleCanvas(self, 2 * self.scale, event.clientX, event.clientY);
+		if (self.canScroll) {
+			canvasFill(self.context.canvas);
+			let transformedPointer = getTransformedPoint(event.clientX, event.clientY, self.context);
+			if ((event.wheelDelta < 0 || event.detail > 0)) {
+				// roll out
+				if (self.scale - SCALE_MULTIPLIER < MIN_ZOOMED - ZOOMED_EPSI && self.zoomLevel > MINIMUM_ZOOM_LEVEL) {
+					self.canScroll = false;
+					self.decreaseResolution(self, transformedPointer);
+					self.scale = MAX_ZOOMED;
+					self.scaleCanvas(self, RELATIVE_SCALE_FACTOR * self.scale, transformedPointer);
+					// self.context.filter = "blur("+ LOADING_BLUR + "px)";
+				} else if (self.zoomLevel != MINIMUM_ZOOM_LEVEL || (self.zoomLevel == MINIMUM_ZOOM_LEVEL && self.scale > MIN_ZOOMED)) {
+					self.scale -= SCALE_MULTIPLIER;
+					self.absoluteScale = 0.5;
+					// console.log(self.scale)
+					updateScale(self, transformedPointer);
+				}
+			} else {
+				// roll in
+				if (self.scale + SCALE_MULTIPLIER > MAX_ZOOMED + ZOOMED_EPSI && self.zoomLevel < MAXIMUM_ZOOM_LEVEL) {
+					self.canScroll = false;
+					self.increaseResolution(self, transformedPointer);
+					self.scale = MIN_ZOOMED;
+					// self.context.filter = "blur("+ LOADING_BLUR + "px)";
+				} else if (self.zoomLevel != MAXIMUM_ZOOM_LEVEL || (self.zoomLevel == MAXIMUM_ZOOM_LEVEL && self.scale < MAX_ZOOMED)) {
+					self.scale += SCALE_MULTIPLIER;
+					self.absoluteScale = 1;
+					updateScale(self, transformedPointer);
+				}
 			}
 		}
 	}
@@ -172,7 +236,11 @@ class SlideView {
 
 window.onload = function(){
 	let view = document.getElementById("view");
+	let navigatorView = document.getElementById("navigator");
+
 	let c = view.getContext("2d");
+	let nc = navigatorView.getContext("2d");
+
 	c.mozImageSmoothingEnabled = false;
 	c.webkitImageSmoothingEnabled = false;
 	c.msImageSmoothingEnabled = false;
@@ -184,7 +252,10 @@ window.onload = function(){
 
 	viewer = new SlideView(view, c, slideImage);
 
-	slideImage.requestTiles(DEFAULTZOOMLEVEL - UPSCALE, viewer.receiveTiles, viewer);
+	nav = new Navigator(navigatorView, nc, viewer);
+
+	slideImage.requestTiles(DEFAULT_ZOOM_LEVEL - UPSCALE, viewer.receiveTiles, viewer);
+	nav.requestThumbnail(nav.receiveThumbnail, nav);
 
 	view.addEventListener("mousedown", function(){
 		viewer.onMouseDown(viewer, event);
@@ -198,7 +269,6 @@ window.onload = function(){
 	view.addEventListener("mousemove", function(){
 		viewer.onMouseMove(viewer, event);
 	}, false);
-
 	view.addEventListener("mousewheel", function(){
 		viewer.onMouseWheel(viewer, event);
 	}, false);

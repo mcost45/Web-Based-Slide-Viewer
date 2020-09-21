@@ -11,12 +11,18 @@ body {
 	display: block;
 	top: 0;
 	left: 0;
+	z-index:-2;
+}
+
+#navigator {
 	z-index:-1;
+	margin: 20px 0 0 20px;
+	position: absolute;
 }
 
 .title {
 	display: inline;
-	margin: 0px 10px 0px 3%;
+	margin: 0 10px 0 20px;
 	font-size: 20px;
 }
 
@@ -28,5 +34,8 @@ body {
 .topBar {
 	background: white;
 	padding: 10px 0 10px 0;
-	box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.boxShadow {
+	box-shadow: 0 3px 3px 0 rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
