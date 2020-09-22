@@ -194,6 +194,7 @@ class SlideView {
 		self.heightV = totalHeight;
 		self.widthVOriginal = self.widthV;
 		self.heightVOriginal = self.heightV;
+		// working on trying to get resolution change to zoom in/out more on mouse position
 		// if (self.loaded) {
 			// self.xLeft = (-self.widthVOriginal/2 + self.canvas.width/2);
 			// self.yTop = (-self.heightVOriginal/2 + self.canvas.height/2);
@@ -224,6 +225,7 @@ class SlideView {
 			let tileYStart = tile["yOff"] + self.yTop;
 			let tileXEnd = tile["xOff"] + tile["imageSrc"].naturalWidth  + self.xLeft;
 			let tileYEnd = tile["yOff"] + tile["imageSrc"].naturalHeight + self.yTop;
+			// only draw the tile if it is on the screen
 			if (isOnScreen(tileXStart, tileXEnd, tileYStart, tileYEnd, 0, window.innerWidth, 0, window.innerHeight)) {
 				self.context.drawImage(tile["imageSrc"], Math.floor(tile["xOff"] + self.xLeft), Math.floor(tile["yOff"] + self.yTop));
 			}
