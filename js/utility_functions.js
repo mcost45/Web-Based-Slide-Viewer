@@ -4,10 +4,12 @@ function canvasFill(canvas) {
 	canvas.width = window.innerWidth;
 }
 
+// get file extension from file name
 function getFileExtension(fileName) {
 	return fileName.split('.').pop();
 }
 
+// check if extension is vmic
 function checkVmic(extension) {
 	if (extension == "vmic") {
 		return 1;
@@ -17,23 +19,28 @@ function checkVmic(extension) {
 	}
 }
 
+// get file from the end of a path
 function getFileFromPath(path) {
 	return path.substring(path.lastIndexOf('/') + 1);
 }
 
+// remove file extension from file name
 function removeFileExtension(file) {
 	return file.replace(/\.[^/.]+$/, "");
 }
 
+// split file name into X and Y coordinates
 function getCoords(X_Y) {
 	return X_Y.split("_");
 }
 
+// check if a tile is on screen by checking for rectangles intersecting
 function isOnScreen(aXStart, aXEnd, aYStart, aYEnd,
 	bXStart, bXEnd, bYStart, bYEnd) {
 	return aXEnd >= bXStart && aXStart <= bXEnd && aYStart <= bYEnd && aYEnd >= bYStart;
 }
 
+// transform a mouse point to canvas coordinates
 function getTransformedPoint(x, y, context) {
 	let inverse = context.getTransform().invertSelf();
 	let transX = inverse.a * x + inverse.c * y + inverse.e;
@@ -41,23 +48,14 @@ function getTransformedPoint(x, y, context) {
 	return {x: transX, y: transY};
 }
 
-function mapToNav(x, y, width, height, ratio) {
-	let newX = x * ratio;
-	let newY = y * ratio;
-	let newWidth = width * ratio;
-	let newHeight = height * ratio;
-	return {x: newX, y: newY, width: newWidth, height: newHeight};
-}
-
-function updateScale(self, transformedPointer) {
-	canvasFill(self.context.canvas);
-	self.scaleCanvas(self, RELATIVE_SCALE_FACTOR * self.scale, transformedPointer);
-}
-
+// update CSS filters to match slider values
 function updateFilters(view, contrastSlider, brightnessSlider, saturationSlider) {
 	view.style.webkitFilter = "contrast(" + contrastSlider.value / 255 + ") brightness(" + brightnessSlider.value / 255 + ") saturate(" + saturationSlider.value / 255 + ")";
 }
 
+// request the first image from a folder - used to get navigation component background
+// performs an asynchronous xhml http request, using the callback function provided once image is fetched
+// if the local web server is not running, this function will be blocked as the browser does not have permission
 function requestImage(dir, callback, self) {
 	let req = new XMLHttpRequest();
 	req.open("GET", dir, true);
@@ -67,7 +65,9 @@ function requestImage(dir, callback, self) {
 	}
 	req.onload = () => {
 		if (req.status === 200) {
+			// perform if request successful
 			let img = document.createElement("img");
+			// wait for image to be loaded before callback
 			img.onload = function() {
 				callback(self, img);
 			}
@@ -79,6 +79,9 @@ function requestImage(dir, callback, self) {
 	req.send();
 }
 
+// request all the images in a folder
+// performs an asynchronous xhml http request, using the callback function provided once image is fetched
+// if the local web server is not running, this function will be blocked as the browser does not have permission
 function requestImages(dir, callback, self) {
 	let imgArray = [];
 	let req = new XMLHttpRequest();
@@ -89,6 +92,7 @@ function requestImages(dir, callback, self) {
 	}
 	req.onload = () => {
 		if (req.status === 200) {
+			// perform if request successful
 			let elements = req.response.getElementsByTagName("a");
 			let loaded = 0;
 			let i = 0;
@@ -98,6 +102,7 @@ function requestImages(dir, callback, self) {
 				let fileName = removeFileExtension(getFileFromPath(x.href));
 				let coords = getCoords(fileName);
 				let img = document.createElement("img");
+				// wait for every single image to be loaded before calling the callback function
 				img.onload = function() {
 					loaded++;
 					if (loaded == elements.length) {
@@ -112,8 +117,6 @@ function requestImages(dir, callback, self) {
 				});
 				++i;
 			};
-			// loop finished, do something now until the onload function fulfills
-			// callback(imgArray);
 		} else {
 			alert("Failed Request: " + req.status);
 		}
